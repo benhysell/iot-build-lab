@@ -1,16 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Net.Http;
 using System.Threading;
+using System.Threading.Tasks;
 using Windows.ApplicationModel.Background;
 using Windows.Networking;
 using Windows.Networking.Connectivity;
 using Windows.System.Threading;
-
 using Microsoft.Maker.Sparkfun.WeatherShield;
+using Newtonsoft.Json;
 
 // The Background Application template is documented at http://go.microsoft.com/fwlink/?LinkID=533884&clcid=0x409
 
-namespace build2015_weather_station_task
+namespace WeatherStationBackground
 {
     public sealed partial class StartupTask : IBackgroundTask
     {
@@ -23,7 +27,7 @@ namespace build2015_weather_station_task
         private HttpServer server;
         private WeatherShield shield = new WeatherShield("I2C1", 6, 5);
         private BackgroundTaskDeferral taskDeferral;
-        private WeatherData weatherData = new WeatherData();
+        private readonly WeatherData weatherData = new WeatherData();
 
         // Hard coding guid for sensors. Not an issue for this particular application which is meant for testing and demos
         private List<ConnectTheDotsSensor> sensors = new List<ConnectTheDotsSensor> {
@@ -44,13 +48,8 @@ namespace build2015_weather_station_task
             mutex = new Mutex(false, mutexId);
 
             // Initialize ConnectTheDots Settings
-            localSettings.ServicebusNamespace = "iotbuildlab-ns";
-            localSettings.EventHubName = "ehdevices";
-            localSettings.KeyName = "D1";
-            localSettings.Key = "iQFNbyWTYRBwypMtPmpfJVz+NBgR32YHrQC0ZSvId20=";
-            localSettings.DisplayName = GetHostName();
-            localSettings.Organization = "IoT Build Lab";
-            localSettings.Location = "USA";
+            //Endpoint=sb://viewpoint-ns.servicebus.windows.net/;SharedAccessKeyName=D1;SharedAccessKey=25iB0rR9kvEyPaRu4uu26HgT5JpRy7qPEabMGjh9buY=
+          
 
             SaveSettings();
 
@@ -66,9 +65,8 @@ namespace build2015_weather_station_task
 
             // Task cancellation handler, release our deferral there 
             taskInstance.Canceled += OnCanceled;
-
             // Create a timer-initiated ThreadPool task to renew SAS token regularly
-        //    SasTokenRenewTimer = ThreadPoolTimer.CreatePeriodicTimer(RenewSasToken, TimeSpan.FromMinutes(15));
+             SasTokenRenewTimer = ThreadPoolTimer.CreatePeriodicTimer(RenewSasToken, TimeSpan.FromMinutes(15));
         }
 
         private string GetHostName()
@@ -112,7 +110,7 @@ namespace build2015_weather_station_task
                     shield.BlueLedPin.Write(Windows.Devices.Gpio.GpioPinValue.Low);
 
                     // Push the WeatherData cloud storage (viewable at http://iotbuildlab.azurewebsites.net/)
-                    //SendDataToConnectTheDots();
+                    SendDataToConnectTheDots();
                 }
             }
             finally
@@ -145,7 +143,7 @@ namespace build2015_weather_station_task
             }
         }
 
-        private void SendDataToConnectTheDots()
+        private async void SendDataToConnectTheDots()
         {
             ConnectTheDotsSensor sensor;
             string time = DateTime.UtcNow.ToString("o");
@@ -156,7 +154,7 @@ namespace build2015_weather_station_task
             {
                 sensor.value = weatherData.Altitude;
                 sensor.timecreated = time;
-                sendMessage(sensor.ToJson());
+                weatherData.SendResult = await SendMessage(JsonConvert.SerializeObject(sensor));
             }
 
             // Send the humidity data
@@ -165,7 +163,7 @@ namespace build2015_weather_station_task
             {
                 sensor.value = weatherData.Humidity;
                 sensor.timecreated = time;
-                sendMessage(sensor.ToJson());
+                weatherData.SendResult = await SendMessage(JsonConvert.SerializeObject(sensor));
             }
 
             // Sending the pressure data
@@ -174,7 +172,7 @@ namespace build2015_weather_station_task
             {
                 sensor.value = (weatherData.BarometricPressure / 1000);
                 sensor.timecreated = time;
-                sendMessage(sensor.ToJson());
+                weatherData.SendResult = await SendMessage(JsonConvert.SerializeObject(sensor));
             }
 
             // Sending the temperature data
@@ -183,7 +181,7 @@ namespace build2015_weather_station_task
             {
                 sensor.value = weatherData.CelsiusTemperature;
                 sensor.timecreated = time;
-                sendMessage(sensor.ToJson());
+                weatherData.SendResult = await SendMessage(JsonConvert.SerializeObject(sensor));
             }
         }
     }

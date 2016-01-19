@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Windows.Data.Json;
 using Windows.System.Threading;
@@ -25,7 +26,7 @@ namespace build2015_weather_station
         private HttpBaseProtocolFilter weatherFilter = new HttpBaseProtocolFilter();
         //TODO: On the following line, replace "minwinpc" with the computer name of your IoT device (i.e. "http://<iot_device_name>:50001").
         private Uri weatherUri = new Uri("http://minwinpc:50001");
-
+        
         public MainPage()
         {
             ApplicationView.PreferredLaunchWindowingMode = ApplicationViewWindowingMode.FullScreen;
@@ -37,15 +38,16 @@ namespace build2015_weather_station
 
             LogToScreen("Attempting to read from endpoint: " + weatherUri);
             LogToScreen("");
-
             // Create a timer-initiated ThreadPool task to read data from I2C
             ThreadPoolTimer readerTimer = ThreadPoolTimer.CreatePeriodicTimer(async (source) =>
             {
+                
                 await ClearLogScreen();
                 QueryWeatherData();
 
                 // Notify the UI to do an update.
                 await Dispatcher.RunAsync(CoreDispatcherPriority.Low, () => UpdateScreen());
+                
 
             }, TimeSpan.FromSeconds(2));
 
@@ -53,10 +55,10 @@ namespace build2015_weather_station
 
         private async Task ClearLogScreen(CoreDispatcherPriority priority = CoreDispatcherPriority.Low)
         {
-                await Dispatcher.RunAsync(priority, () => { Status.Text = ""; });
+            await Dispatcher.RunAsync(priority, () => { Status.Text = ""; });
         }
 
-        private async void LogToScreen (string text, CoreDispatcherPriority priority = CoreDispatcherPriority.Low)
+        private async void LogToScreen(string text, CoreDispatcherPriority priority = CoreDispatcherPriority.Low)
         {
             await Dispatcher.RunAsync(priority, () => { Status.Text += text + "\n"; });
         }
@@ -64,7 +66,8 @@ namespace build2015_weather_station
         async void QueryWeatherData()
         {
             // Query weather data
-            try {
+            try
+            {
                 using (HttpResponseMessage response = await weatherClient.GetAsync(weatherUri))
                 {
                     if (response.IsSuccessStatusCode)
