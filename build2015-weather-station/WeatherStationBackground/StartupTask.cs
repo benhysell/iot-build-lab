@@ -48,8 +48,7 @@ namespace WeatherStationBackground
             mutex = new Mutex(false, mutexId);
 
             // Initialize ConnectTheDots Settings
-            //Endpoint=sb://viewpoint-ns.servicebus.windows.net/;SharedAccessKeyName=D1;SharedAccessKey=25iB0rR9kvEyPaRu4uu26HgT5JpRy7qPEabMGjh9buY=
-          
+            
 
             SaveSettings();
 
